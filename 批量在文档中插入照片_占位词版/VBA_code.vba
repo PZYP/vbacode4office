@@ -1,4 +1,4 @@
-Sub 批量插入照片_占位词版()
+Sub 批量插入照片_查找文字版()
 
     On Error GoTo ErrHandler
 
@@ -29,9 +29,9 @@ Sub 批量插入照片_占位词版()
     Dim findText As String
 
     '========================
-    ' 要查找的占位词文字
+    ' 要查找的文字
     '========================
-    findText = "1寸红底照片"
+    findText = "1寸红底"
 
     '========================
     ' 选择照片文件夹
@@ -117,7 +117,7 @@ Sub 批量插入照片_占位词版()
                 On Error Resume Next
 
                 Set wordDoc = wordApp.Documents.Open( _
-                    FileName:=docPath, _
+                    fileName:=docPath, _
                     ReadOnly:=False, _
                     AddToRecentFiles:=False)
 
@@ -142,29 +142,52 @@ Sub 批量插入照片_占位词版()
                         .Format = False
                         .MatchCase = False
                         .MatchWholeWord = False
+                        .MatchWildcards = False
 
                     End With
 
                     If rng.Find.Execute Then
-
-                        ' 删除占位文字
-                        rng.Text = ""
-
-                        ' 插入照片
-                        rng.InlineShapes.AddPicture _
-                            FileName:=photoPath, _
+                    
+                        Dim startPos As Long
+                        Dim endPos As Long
+                        Dim i As Integer
+                        
+                        '起始位置
+                        startPos = rng.Start
+                        
+                        '从找到的位置开始
+                        rng.Collapse 0
+                        
+                        '插入图片
+                        Dim shp As Object
+                        
+                        '插入浮动图片
+                        Set shp = wordDoc.Shapes.AddPicture( _
+                            fileName:=photoPath, _
                             LinkToFile:=False, _
-                            SaveWithDocument:=True
-
-                        '========================
-                        ' 设置照片大小（可修改）
-                        '========================
-                        With rng.InlineShapes(1)
-
-                            .LockAspectRatio = True
-
-                            ' 宽度：3厘米
-                            .Width = wordApp.CentimetersToPoints(3)
+                            SaveWithDocument:=True, _
+                            Anchor:=rng)
+                            
+                        With shp
+                        
+                            '浮于文字上方
+                            .WrapFormat.Type = 3
+                            
+                            '设置尺寸 示例高2.8cm 宽2.7cm 可根据需要调整
+                            .LockAspectRatio = False
+                            
+                            .Width = wordApp.CentimetersToPoints(2.7)
+                            .Height = wordApp.CentimetersToPoints(2.8)
+                            
+                            '=========================
+                            '微调位置 示例右移-0.1cm 下移0cm 可根据需要调整
+                            '=========================
+                            
+                            '向右移动
+                            .Left = wordApp.CentimetersToPoints(-0.1)
+                            
+                            '向下移动
+                            .Top = wordApp.CentimetersToPoints(0)
 
                         End With
 
@@ -217,6 +240,7 @@ Sub 批量插入照片_占位词版()
 
     Exit Sub
 
+
 '========================
 ' 错误处理
 '========================
@@ -241,47 +265,42 @@ ErrHandler:
 End Sub
 
 '=================================================
-' 提取姓名
+' 提取姓名 直接提取中文字符 过滤非中文字符
 ' 支持：
 ' 1_张三
 ' 张三_1
 ' 001_张三_照片
+' test-张三
+' 0(1)张三
 '=================================================
 Function 提取姓名(ByVal fileName As String) As String
 
-    Dim arr() As String
     Dim i As Long
-    Dim txt As String
+    Dim ch As String
     Dim result As String
-
-    fileName = Replace(fileName, "-", "_")
-    fileName = Replace(fileName, " ", "_")
-
-    arr = Split(fileName, "_")
-
+    
     result = ""
+    
+    '去掉扩展名影响
 
-    For i = LBound(arr) To UBound(arr)
-
-        txt = Trim(arr(i))
-
-        If txt <> "" Then
-
-            ' 排除纯数字
-            If Not IsNumeric(txt) Then
-
-                If result = "" Then
-                    result = txt
-                Else
-                    result = result & txt
-                End If
-
-            End If
-
+    fileName = Replace(fileName, ".jpg", "")
+    fileName = Replace(fileName, ".jpeg", "")
+    fileName = Replace(fileName, ".png", "")
+    fileName = Replace(fileName, ".doc", "")
+    fileName = Replace(fileName, ".docx", "")
+    
+    '逐字符提取中文
+    For i = 1 To Len(fileName)
+    
+        ch = Mid(fileName, i, 1)
+        
+        '中文字符范围
+        If AscW(ch) >= 19968 And AscW(ch) <= 40869 Then
+            result = result & ch
         End If
-
+        
     Next i
-
-    提取姓名 = result
+    
+    提取姓名 = Trim(result)
 
 End Function
